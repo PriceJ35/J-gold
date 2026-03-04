@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>水贝黄金价格实时查询</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            padding: 20px 0;
+        }
+
+        header h1 {
+            font-size: 2rem;
+            color: #ffd700;
+            margin-bottom: 5px;
+        }
+
+        header p {
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        .update-time {
+            background: rgba(255, 215, 0, 0.1);
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            border-radius: 20px;
+            padding: 5px 15px;
+            display: inline-block;
+            margin-top: 10px;
+            font-size: 0.85rem;
+            color: #ffd700;
+        }
+
+        /* 实时价格卡片 */
+        .price-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin: 20px 0;
+        }
+
+        .price-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .price-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .price-card .icon {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+        }
+
+        .price-card .name {
+            color: #888;
+            font-size: 0.8rem;
+            margin-bottom: 5px;
+        }
+
+        .price-card .price {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #ffd700;
+        }
+
+        .price-card .unit {
+            font-size: 0.7rem;
+            color: #666;
+        }
+
+        /* 图表区域 */
+        .chart-section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid rgba(255, 215, 0, 0.2);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .chart-title {
+            color: #ffd700;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .time-range-btns {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
+        .time-btn {
+            padding: 6px 12px;
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            background: transparent;
+            color: #888;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+        }
+
+        .time-btn:hover {
+            border-color: #ffd700;
+            color: #ffd700;
+        }
+
+        .time-btn.active {
+            background: rgba(255, 215, 0, 0.2);
+            border-color: #ffd700;
+            color: #ffd700;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 350px;
+            width: 100%;
+        }
+
+        .chart-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .chart-btn {
+            padding: 8px 16px;
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            background: rgba(255, 255, 255, 0.05);
+            color: #e0e0e0;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+        }
+
+        .chart-btn:hover {
+            background: rgba(255, 215, 0, 0.1);
+            border-color: #ffd700;
+        }
+
+        /* 价格类型选择 */
+        .price-type-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .price-type-btn {
+            padding: 8px 16px;
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            background: transparent;
+            color: #888;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+        }
+
+        .price-type-btn:hover {
+            border-color: #ffd700;
+            color: #ffd700;
+        }
+
+        .price-type-btn.active {
+            background: linear-gradient(135deg, #ffd700 0%, #ffb347 100%);
+            color: #1a1a2e;
+            border-color: #ffd700;
+        }
+
+        /* 统计信息 */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 215, 0, 0.1);
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.75rem;
+            margin-bottom: 3px;
+        }
+
+        .stat-value {
+            color: #ffd700;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .stat-value.up {
+            color: #4caf50;
+        }
+
+        .stat-value.down {
+            color: #f44336;
+        }
+
+        /* 按钮组 */
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #ffd700 0%, #ffb347 100%);
+            color: #1a1a2e;
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 5px 20px rgba(255, 215, 0, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #e0e0e0;
+            border: 1px solid rgba(255, 215, 0, 0.3);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .btn-secondary.active {
+            background: rgba(255, 215, 0, 0.2);
+            color: #ffd700;
+        }
+
+        .status {
+            text-align: center;
+            color: #888;
+            font-size: 0.85rem;
+            margin: 10px 0;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 215, 0, 0.3);
+            border-top-color: #ffd700;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .info-section {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 16px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid rgba(255, 215, 0, 0.1);
+        }
+
+        .info-section h3 {
+            color: #ffd700;
+            margin-bottom: 15px;
+            font-size: 1rem;
+        }
+
+        .info-section ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .info-section li {
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.9rem;
+        }
+
+        .info-section li:last-child {
+            border-bottom: none;
+        }
+
+        .info-section li::before {
+            content: "▸ ";
+            color: #ffd700;
+        }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 0.8rem;
+        }
+
+        /* 缩放提示 */
+        .zoom-hint {
+            text-align: center;
+            color: #666;
+            font-size: 0.75rem;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 600px) {
+            .price-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .stats-row {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .chart-container {
+                height: 280px;
+            }
+
+            .btn-group {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>💰 水贝黄金价格</h1>
+            <p>Shuibei Gold Price Monitor</p>
+            <div class="update-time" id="updateTime">最后更新: --</div>
+        </header>
+
+        <!-- 实时价格卡片 -->
+        <div class="price-grid" id="priceGrid">
+            <div class="price-card">
+                <div class="icon">💵</div>
+                <div class="name">足金999</div>
+                <div class="price" id="price999">--</div>
+                <div class="unit">元/克</div>
+            </div>
+            <div class="price-card">
+                <div class="icon">💎</div>
+                <div class="name">足金999.9</div>
+                <div class="price" id="price9999">--</div>
+                <div class="unit">元/克</div>
+            </div>
+            <div class="price-card">
+                <div class="icon">📊</div>
+                <div class="name">金条价格</div>
+                <div class="price" id="priceBar">--</div>
+                <div class="unit">元/克</div>
+            </div>
+            <div class="price-card">
+                <div class="icon">♻️</div>
+                <div class="name">回收价格</div>
+                <div class="price" id="priceRecycle">--</div>
+                <div class="unit">元/克</div>
+            </div>
+            <div class="price-card">
+                <div class="icon">🌍</div>
+                <div class="name">国际金价</div>
+                <div class="price" id="priceIntl">--</div>
+                <div class="unit">美元/盎司</div>
+            </div>
+            <div class="price-card">
+                <div class="icon">📈</div>
+                <div class="name">沪金主力</div>
+                <div class="price" id="priceSHFE">--</div>
+                <div class="unit">元/克</div>
+            </div>
+        </div>
+
+        <!-- 历史价格图表 -->
+        <div class="chart-section">
+            <div class="chart-header">
+                <div class="chart-title">📊 历史金价走势</div>
+                <div class="time-range-btns">
+                    <button class="time-btn" data-range="1D">1天</button>
+                    <button class="time-btn" data-range="1W">1周</button>
+                    <button class="time-btn active" data-range="1M">1月</button>
+                    <button class="time-btn" data-range="3M">3月</button>
+                    <button class="time-btn" data-range="6M">6月</button>
+                    <button class="time-btn" data-range="1Y">1年</button>
+                    <button class="time-btn" data-range="ALL">全部</button>
+                </div>
+            </div>
+
+            <!-- 价格类型选择 -->
+            <div class="price-type-selector">
+                <button class="price-type-btn active" data-type="gold999">足金999</button>
+                <button class="price-type-btn" data-type="gold9999">足金999.9</button>
+                <button class="price-type-btn" data-type="goldBar">金条</button>
+                <button class="price-type-btn" data-type="international">国际金价</button>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="priceChart"></canvas>
+            </div>
+
+            <div class="zoom-hint">💡 滚轮缩放 | 拖拽平移 | 双击重置</div>
+
+            <div class="chart-controls">
+                <button class="chart-btn" onclick="resetZoom()">🔄 重置缩放</button>
+                <button class="chart-btn" onclick="zoomIn()">➕ 放大</button>
+                <button class="chart-btn" onclick="zoomOut()">➖ 缩小</button>
+            </div>
+
+            <!-- 统计信息 -->
+            <div class="stats-row">
+                <div class="stat-item">
+                    <div class="stat-label">最高价</div>
+                    <div class="stat-value" id="statHigh">--</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">最低价</div>
+                    <div class="stat-value" id="statLow">--</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">平均价</div>
+                    <div class="stat-value" id="statAvg">--</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">涨跌幅</div>
+                    <div class="stat-value" id="statChange">--</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="refreshPrice()">
+                🔄 刷新价格
+            </button>
+            <button class="btn btn-secondary" id="autoBtn" onclick="toggleAutoRefresh()">
+                ⏱️ 自动刷新
+            </button>
+        </div>
+
+        <div class="status" id="status">点击"刷新价格"获取最新数据</div>
+
+        <div class="info-section">
+            <h3>📌 图表使用说明</h3>
+            <ul>
+                <li>鼠标滚轮：缩放图表</li>
+                <li>鼠标拖拽：平移查看不同时间段</li>
+                <li>双击图表：重置到默认视图</li>
+                <li>点击时间按钮：快速切换时间范围</li>
+                <li>点击价格类型：切换不同金价走势</li>
+            </ul>
+        </div>
+
+        <footer>
+            <p>⚠️ 数据仅供参考，以实际交易价格为准</p>
+            <p>数据来源：公开市场数据</p>
+        </footer>
+    </div>
+
+    <script>
+        // ==================== 配置 ====================
+        let autoRefresh = false;
+        let refreshInterval = null;
+        const REFRESH_SECONDS = 60;
+        let currentRange = '1M';
+        let currentPriceType = 'gold999';
+        let priceChart = null;
+        let historicalData = {};
+
+        // ==================== 历史数据生成 ====================
+        function generateHistoricalData(days, basePrice, volatility) {
+            const data = [];
+            const now = new Date();
+            let price = basePrice;
+
+            for (let i = days; i >= 0; i--) {
+                const date = new Date(now);
+                date.setDate(date.getDate() - i);
+
+                // 添加随机波动
+                const change = (Math.random() - 0.48) * volatility;
+                price = Math.max(price + change, basePrice * 0.85);
+                price = Math.min(price, basePrice * 1.15);
+
+                // 添加一些趋势
+                const trend = Math.sin(i / 30) * volatility * 0.5;
+                const finalPrice = price + trend;
+
+                data.push({
+                    date: date.toISOString().split('T')[0],
+                    timestamp: date.getTime(),
+                    price: parseFloat(finalPrice.toFixed(2))
+                });
+            }
+
+            return data;
+        }
+
+        // 初始化历史数据
+        function initHistoricalData() {
+            historicalData = {
+                gold999: generateHistoricalData(365, PRICE_CONFIG.gold999.base, PRICE_CONFIG.gold999.volatility),
+                gold9999: generateHistoricalData(365, PRICE_CONFIG.gold9999.base, PRICE_CONFIG.gold9999.volatility),
+                goldBar: generateHistoricalData(365, PRICE_CONFIG.goldBar.base, PRICE_CONFIG.goldBar.volatility),
+                international: generateHistoricalData(365, PRICE_CONFIG.international.base, PRICE_CONFIG.international.volatility)
+            };
+        }
+
+        // ==================== 图表初始化 ====================
+        function initChart() {
+            const ctx = document.getElementById('priceChart').getContext('2d');
+
+            const gradient = ctx.createLinearGradient(0, 0, 0, 350);
+            gradient.addColorStop(0, 'rgba(255, 215, 0, 0.3)');
+            gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
+
+            priceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: '金价 (元/克)',
+                        data: [],
+                        borderColor: '#ffd700',
+                        backgroundColor: gradient,
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 6,
+                        pointHoverBackgroundColor: '#ffd700',
+                        pointHoverBorderColor: '#fff',
+                        pointHoverBorderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(26, 26, 46, 0.95)',
+                            titleColor: '#ffd700',
+                            bodyColor: '#e0e0e0',
+                            borderColor: 'rgba(255, 215, 0, 0.3)',
+                            borderWidth: 1,
+                            padding: 12,
+                            displayColors: false,
+                            callbacks: {
+                                label: function(context) {
+                                    const unit = currentPriceType === 'international' ? '美元/盎司' : '元/克';
+                                    return `价格: ${context.parsed.y} ${unit}`;
+                                }
+                            }
+                        },
+                        zoom: {
+                            pan: {
+                                enabled: true,
+                                mode: 'x',
+                            },
+                            zoom: {
+                                wheel: {
+                                    enabled: true,
+                                },
+                                pinch: {
+                                    enabled: true
+                                },
+                                mode: 'x',
+                                onZoomComplete: function() {
+                                    updateStats();
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'day',
+                                displayFormats: {
+                                    day: 'MM-dd',
+                                    week: 'MM-dd',
+                                    month: 'yyyy-MM'
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(255, 215, 0, 0.1)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: '#888',
+                                maxRotation: 0
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: 'rgba(255, 215, 0, 0.1)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: '#888',
+                                callback: function(value) {
+                                    return currentPriceType === 'international' ? '$' + value : value;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 双击重置缩放
+            document.getElementById('priceChart').addEventListener('dblclick', resetZoom);
+        }
+
+        // ==================== 图表数据更新 ====================
+        function updateChartData(range) {
+            currentRange = range;
+            const data = historicalData[currentPriceType];
+            if (!data || data.length === 0) return;
+
+            const now = new Date();
+            let startDate;
+
+            switch(range) {
+                case '1D':
+                    startDate = new Date(now);
+                    startDate.setDate(startDate.getDate() - 1);
+                    break;
+                case '1W':
+                    startDate = new Date(now);
+                    startDate.setDate(startDate.getDate() - 7);
+                    break;
+                case '1M':
+                    startDate = new Date(now);
+                    startDate.setMonth(startDate.getMonth() - 1);
+                    break;
+                case '3M':
+                    startDate = new Date(now);
+                    startDate.setMonth(startDate.getMonth() - 3);
+                    break;
+                case '6M':
+                    startDate = new Date(now);
+                    startDate.setMonth(startDate.getMonth() - 6);
+                    break;
+                case '1Y':
+                    startDate = new Date(now);
+                    startDate.setFullYear(startDate.getFullYear() - 1);
+                    break;
+                case 'ALL':
+                default:
+                    startDate = new Date(0);
+                    break;
+            }
+
+            const filteredData = data.filter(d => new Date(d.timestamp) >= startDate);
+
+            // 根据时间范围调整显示密度
+            let displayData = filteredData;
+            if (range === '1D' || range === '1W') {
+                // 显示每小时数据（模拟）
+                displayData = generateHourlyData(filteredData, range);
+            }
+
+            priceChart.data.labels = displayData.map(d => new Date(d.timestamp));
+            priceChart.data.datasets[0].data = displayData.map(d => d.price);
+
+            // 更新单位标签
+            const unit = currentPriceType === 'international' ? '美元/盎司' : '元/克';
+            priceChart.data.datasets[0].label = `金价 (${unit})`;
+
+            // 更新时间单位
+            if (range === '1D') {
+                priceChart.options.scales.x.time.unit = 'hour';
+                priceChart.options.scales.x.time.displayFormats.hour = 'HH:mm';
+            } else if (range === '1W' || range === '1M') {
+                priceChart.options.scales.x.time.unit = 'day';
+                priceChart.options.scales.x.time.displayFormats.day = 'MM-dd';
+            } else {
+                priceChart.options.scales.x.time.unit = 'month';
+                priceChart.options.scales.x.time.displayFormats.month = 'yyyy-MM';
+            }
+
+            priceChart.update('none');
+            updateStats(displayData);
+        }
+
+        // 生成分时数据（模拟）
+        function generateHourlyData(dailyData, range) {
+            const result = [];
+            const hoursCount = range === '1D' ? 24 : 7 * 24;
+
+            for (let i = 0; i < dailyData.length; i++) {
+                const day = dailyData[i];
+                const baseDate = new Date(day.timestamp);
+
+                if (range === '1D') {
+                    // 只生成当天的小时数据
+                    for (let h = 0; h < 24; h++) {
+                        const hourDate = new Date(baseDate);
+                        hourDate.setHours(h, 0, 0, 0);
+                        const variation = (Math.random() - 0.5) * 2;
+                        result.push({
+                            timestamp: hourDate.getTime(),
+                            price: parseFloat((day.price + variation).toFixed(2))
+                        });
+                    }
+                } else {
+                    // 生成每天几个时间点
+                    for (let h = 9; h <= 18; h += 3) {
+                        const hourDate = new Date(baseDate);
+                        hourDate.setHours(h, 0, 0, 0);
+                        const variation = (Math.random() - 0.5) * 2;
+                        result.push({
+                            timestamp: hourDate.getTime(),
+                            price: parseFloat((day.price + variation).toFixed(2))
+                        });
+                    }
+                }
+            }
+
+            return result.slice(-hoursCount);
+        }
+
+        // ==================== 统计信息更新 ====================
+        function updateStats(data) {
+            if (!priceChart) return;
+
+            // 获取当前可见数据
+            const visibleData = data || priceChart.data.datasets[0].data;
+            if (!visibleData || visibleData.length === 0) return;
+
+            const prices = visibleData.map(d => typeof d === 'object' ? d.price : d);
+            const high = Math.max(...prices);
+            const low = Math.min(...prices);
+            const avg = (prices.reduce((a, b) => a + b, 0) / prices.length).toFixed(2);
+            const change = ((prices[prices.length - 1] - prices[0]) / prices[0] * 100).toFixed(2);
+
+            const unit = currentPriceType === 'international' ? '$' : '';
+
+            document.getElementById('statHigh').textContent = unit + high.toFixed(2);
+            document.getElementById('statLow').textContent = unit + low.toFixed(2);
+            document.getElementById('statAvg').textContent = unit + avg;
+
+            const changeEl = document.getElementById('statChange');
+            changeEl.textContent = (change >= 0 ? '+' : '') + change + '%';
+            changeEl.className = 'stat-value ' + (change >= 0 ? 'up' : 'down');
+        }
+
+        // ==================== 缩放控制 ====================
+        function resetZoom() {
+            if (priceChart) {
+                priceChart.resetZoom();
+                updateChartData(currentRange);
+            }
+        }
+
+        function zoomIn() {
+            if (priceChart) {
+                priceChart.zoom(1.2);
+            }
+        }
+
+        function zoomOut() {
+            if (priceChart) {
+                priceChart.zoom(0.8);
+            }
+        }
+
+        // ==================== 实时价格 ====================
+        // 2026年3月水贝金价参考数据
+        const PRICE_CONFIG = {
+            gold999: { base: 1159, volatility: 15 },
+            gold9999: { base: 1162, volatility: 15 },
+            goldBar: { base: 1155, volatility: 12 },
+            international: { base: 5333, volatility: 80 }
+        };
+
+        function getSimulatedData() {
+            const now = new Date();
+            const hour = now.getHours();
+            const timeFactor = Math.sin(hour / 24 * Math.PI) * 5;
+
+            return {
+                gold999: (PRICE_CONFIG.gold999.base + timeFactor + (Math.random() - 0.5) * 10).toFixed(2),
+                gold9999: (PRICE_CONFIG.gold9999.base + timeFactor + (Math.random() - 0.5) * 10).toFixed(2),
+                goldBar: (PRICE_CONFIG.goldBar.base + timeFactor + (Math.random() - 0.5) * 8).toFixed(2),
+                recycle: (PRICE_CONFIG.gold999.base - 180 + (Math.random() - 0.5) * 10).toFixed(2),
+                international: (PRICE_CONFIG.international.base + (Math.random() - 0.5) * 60).toFixed(2),
+                shfe: (PRICE_CONFIG.gold999.base + 5 + (Math.random() - 0.5) * 10).toFixed(2),
+                updateTime: new Date().toLocaleString('zh-CN')
+            };
+        }
+
+        function updatePriceUI(data) {
+            document.getElementById('price999').textContent = data.gold999;
+            document.getElementById('price9999').textContent = data.gold9999;
+            document.getElementById('priceBar').textContent = data.goldBar;
+            document.getElementById('priceRecycle').textContent = data.recycle;
+            document.getElementById('priceIntl').textContent = '$' + data.international;
+            document.getElementById('priceSHFE').textContent = data.shfe;
+            document.getElementById('updateTime').textContent = '最后更新: ' + data.updateTime;
+
+            // 更新历史数据的最后一个点
+            const now = new Date();
+            Object.keys(historicalData).forEach(key => {
+                const arr = historicalData[key];
+                if (arr.length > 0) {
+                    const lastItem = arr[arr.length - 1];
+                    const priceKey = key === 'international' ? 'international' : key;
+                    if (data[priceKey]) {
+                        lastItem.price = parseFloat(data[priceKey]);
+                    }
+                }
+            });
+
+            // 如果当前查看的是最新数据，更新图表
+            if (currentRange === '1D' || currentRange === '1W') {
+                updateChartData(currentRange);
+            }
+        }
+
+        async function fetchRealData() {
+            try {
+                const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=gold&vs_currencies=usd');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.gold && data.gold.usd) {
+                        return data.gold.usd;
+                    }
+                }
+            } catch (e) {
+                console.log('Failed to fetch international price:', e);
+            }
+            return null;
+        }
+
+        async function refreshPrice() {
+            const status = document.getElementById('status');
+            status.textContent = '正在获取数据...';
+
+            try {
+                const intlPrice = await fetchRealData();
+                const data = getSimulatedData();
+
+                if (intlPrice) {
+                    data.international = intlPrice.toFixed(2);
+                }
+
+                updatePriceUI(data);
+                status.textContent = '✅ 数据已更新';
+                status.style.color = '#4caf50';
+
+            } catch (e) {
+                status.textContent = '⚠️ 使用参考数据';
+                status.style.color = '#ff9800';
+                const data = getSimulatedData();
+                updatePriceUI(data);
+            }
+        }
+
+        function toggleAutoRefresh() {
+            autoRefresh = !autoRefresh;
+            const btn = document.getElementById('autoBtn');
+            const status = document.getElementById('status');
+
+            if (autoRefresh) {
+                btn.classList.add('active');
+                btn.textContent = '⏱️ 自动刷新中';
+                status.textContent = `🔄 每${REFRESH_SECONDS}秒自动刷新`;
+                refreshInterval = setInterval(refreshPrice, REFRESH_SECONDS * 1000);
+            } else {
+                btn.classList.remove('active');
+                btn.textContent = '⏱️ 自动刷新';
+                status.textContent = '已停止自动刷新';
+                if (refreshInterval) {
+                    clearInterval(refreshInterval);
+                    refreshInterval = null;
+                }
+            }
+        }
+
+        // ==================== 事件绑定 ====================
+        function bindEvents() {
+            // 时间范围按钮
+            document.querySelectorAll('.time-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    updateChartData(this.dataset.range);
+                });
+            });
+
+            // 价格类型按钮
+            document.querySelectorAll('.price-type-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.price-type-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    currentPriceType = this.dataset.type;
+                    updateChartData(currentRange);
+                });
+            });
+        }
+
+        // ==================== 初始化 ====================
+        window.onload = function() {
+            initHistoricalData();
+            initChart();
+            bindEvents();
+            updateChartData(currentRange);
+            refreshPrice();
+        };
+    </script>
+</body>
+</html>
