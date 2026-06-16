@@ -1,0 +1,158 @@
+<!--pages/index/index.wxml-->
+<view class="container">
+  <!-- 头部 -->
+  <view class="header">
+    <text class="title">🐷 小黑猪看金价</text>
+    <text class="subtitle">Shuibei Precious Metals</text>
+    <view class="header-row">
+      <view class="update-time">
+        <text>{{updateTime}}</text>
+      </view>
+      <view class="data-source">
+        <text>{{dataSource}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 贵金属类型切换 -->
+  <view class="metal-tabs">
+    <view
+      class="metal-tab {{currentMetal === item.value ? 'active' : ''}}"
+      wx:for="{{metalTypes}}"
+      wx:key="value"
+      bindtap="onMetalChange"
+      data-metal="{{item.value}}"
+    >
+      <text class="tab-icon">{{item.icon}}</text>
+      <text class="tab-label">{{item.label}}</text>
+    </view>
+  </view>
+
+  <!-- 实时价格列表 -->
+  <view class="price-section">
+    <view class="price-header">
+      <text class="col-name">品种</text>
+      <text class="col-buy">回购</text>
+      <text class="col-sell">销售</text>
+      <text class="col-range">高/低</text>
+    </view>
+    <view
+      class="price-row {{item.selected ? 'selected' : ''}}"
+      wx:for="{{priceList}}"
+      wx:key="key"
+      bindtap="onPriceSelect"
+      data-key="{{item.key}}"
+    >
+      <view class="price-name">
+        <text class="price-icon">{{item.icon}}</text>
+        <text class="name-text">{{item.name}}</text>
+      </view>
+      <text class="price-buy">{{item.buy}}</text>
+      <text class="price-sell">{{item.sell}}</text>
+      <view class="price-range">
+        <text class="price-high">{{item.high}}</text>
+        <text class="slash">/</text>
+        <text class="price-low">{{item.low}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 图表区域 -->
+  <view class="chart-section">
+    <view class="chart-header">
+      <text class="chart-title">📊 价格走势</text>
+      <view class="chart-type-switch">
+        <view
+          class="type-btn {{currentChartType === item.value ? 'active' : ''}}"
+          wx:for="{{chartTypes}}"
+          wx:key="value"
+          bindtap="onChartTypeChange"
+          data-type="{{item.value}}"
+        >
+          {{item.label}}
+        </view>
+      </view>
+    </view>
+
+    <!-- 时间范围选择 -->
+    <view class="time-range" wx:if="{{currentChartType === 'history'}}">
+      <view
+        class="time-btn {{currentRange === item.value ? 'active' : ''}}"
+        wx:for="{{timeRanges}}"
+        wx:key="value"
+        bindtap="onRangeChange"
+        data-range="{{item.value}}"
+      >
+        {{item.label}}
+      </view>
+    </view>
+
+    <!-- 实时图提示 -->
+    <view class="realtime-tip" wx:if="{{currentChartType === 'realtime'}}">
+      <text>📈 显示最近24小时数据</text>
+    </view>
+
+    <!-- Canvas 图表 -->
+    <view class="chart-container">
+      <canvas
+        type="2d"
+        id="priceChart"
+        canvas-id="priceChart"
+        class="chart-canvas"
+      ></canvas>
+    </view>
+
+    <!-- 统计信息 -->
+    <view class="stats-row" wx:if="{{stats.high != '--'}}">
+      <view class="stat-item">
+        <text class="stat-label">最高</text>
+        <text class="stat-value">{{stats.high}}</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-label">最低</text>
+        <text class="stat-value">{{stats.low}}</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-label">平均</text>
+        <text class="stat-value">{{stats.avg}}</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-label">涨跌</text>
+        <text class="stat-value {{stats.change >= 0 ? 'up' : 'down'}}">
+          {{stats.change >= 0 ? '+' : ''}}{{stats.change}}%
+        </text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 操作按钮 -->
+  <view class="btn-group">
+    <button class="btn-primary" bindtap="refreshPrice" loading="{{loading}}">
+      🔄 立即刷新
+    </button>
+    <button class="btn-secondary {{autoRefresh ? 'active' : ''}}" bindtap="toggleAutoRefresh">
+      {{autoRefresh ? '⏸️ 暂停' : '▶️ 实时'}} (1秒)
+    </button>
+  </view>
+
+  <!-- 状态提示 -->
+  <view class="status-bar">
+    <text>{{status}}</text>
+  </view>
+
+  <!-- 说明 -->
+  <view class="info-section">
+    <text class="info-title">📌 数据来源</text>
+    <view class="info-list">
+      <text class="info-item">• 实时数据：每秒从艾尚珠宝抓取</text>
+      <text class="info-item">• 实时图：显示最近24小时数据</text>
+      <text class="info-item">• 走势图：上海黄金交易所历史数据</text>
+    </view>
+  </view>
+
+  <!-- 底部 -->
+  <view class="footer">
+    <text>⚠️ 数据仅供参考</text>
+    <text>实时：艾尚珠宝 | 走势：上金所</text>
+  </view>
+</view>
